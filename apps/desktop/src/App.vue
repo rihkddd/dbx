@@ -151,6 +151,7 @@ const {
   checkUpdates,
   openLatestRelease,
   downloadAndInstallUpdate,
+  cancelDownload,
   installDownloadedUpdate,
   restartApp,
 } = useAppUpdater({
@@ -2500,6 +2501,7 @@ onUnmounted(() => {
           :active-task-count="activeUpdateTaskCount"
           @open-latest-release="openLatestRelease"
           @download-and-install="downloadAndInstallUpdate"
+          @cancel-download="cancelDownload"
           @install-downloaded="installDownloadedUpdate"
           @restart="restartApp"
         />

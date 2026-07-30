@@ -104,10 +104,16 @@ export function useAppUpdater(options: UseAppUpdaterOptions = {}) {
 
   function formatUpdateError(message: string): string {
     const lower = message.toLowerCase();
+    if (lower.includes("canceled") || lower.includes("cancelled")) {
+      return t("updates.downloadCanceled");
+    }
     if (lower.includes("403") || lower.includes("rate limit")) {
       return t("updates.rateLimited");
     }
-    return t("updates.failed", { error: message });
+    if (lower.includes("stalled") || lower.includes("timeout") || lower.includes("all available mirrors") || lower.includes("error sending request") || lower.includes("failed to download")) {
+      return t("updates.networkOrMirrorFailed");
+    }
+    return t("updates.downloadFailed", { error: message });
   }
 
   function openLatestRelease() {
@@ -132,7 +138,6 @@ export function useAppUpdater(options: UseAppUpdaterOptions = {}) {
     downloadProgress.value = 0;
     let unlisten: (() => void) | undefined;
     const latestVersion = updateInfo.value?.latest_version;
-    let failureMessageKey = "updates.downloadFailed";
     try {
       const { listen } = await import("@tauri-apps/api/event");
       unlisten = await listen<UpdateDownloadProgress>("update-download-progress", (event) => {
@@ -151,7 +156,6 @@ export function useAppUpdater(options: UseAppUpdaterOptions = {}) {
           }
         },
         install: async () => {
-          failureMessageKey = "updates.installFailed";
           await installPendingUpdate();
         },
       });
@@ -159,7 +163,14 @@ export function useAppUpdater(options: UseAppUpdaterOptions = {}) {
         blockUpdateForActiveTasks();
       }
     } catch (e: any) {
-      toast(t(failureMessageKey, { error: e?.message || String(e) }), 5000);
+      downloadProgress.value = 0;
+      const rawMsg = e?.message || String(e);
+      console.error("[DBX update error]", rawMsg);
+      const lower = rawMsg.toLowerCase();
+      if (lower.includes("canceled") || lower.includes("cancelled")) {
+        return;
+      }
+      toast(formatUpdateError(rawMsg), 5000);
     } finally {
       unlisten?.();
       isDownloadingUpdate.value = false;
@@ -203,6 +214,20 @@ export function useAppUpdater(options: UseAppUpdaterOptions = {}) {
     }
   }
 
+  async function cancelDownload() {
+    if (isDownloadingUpdate.value) {
+      isDownloadingUpdate.value = false;
+      downloadProgress.value = 0;
+      if (isTauriRuntime()) {
+        try {
+          await api.cancelUpdateDownload();
+        } catch {
+          // ignore
+        }
+      }
+    }
+  }
+
   return {
     checkingUpdates,
     updateInfo,
@@ -221,6 +246,7 @@ export function useAppUpdater(options: UseAppUpdaterOptions = {}) {
     formatUpdateError,
     openLatestRelease,
     downloadAndInstallUpdate,
+    cancelDownload,
     installDownloadedUpdate,
     restartApp,
   };
