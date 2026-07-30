@@ -37,6 +37,15 @@ const renderedNotes = ref("");
 const isCloseBlocked = computed(() => props.isInstallingUpdate);
 
 function handleCancel() {
+  handleOpenChange(false);
+}
+
+function handleOpenChange(nextOpen: boolean) {
+  if (nextOpen) {
+    open.value = true;
+    return;
+  }
+  if (isCloseBlocked.value) return;
   if (props.isDownloadingUpdate) {
     emit("cancel-download");
   }
@@ -73,20 +82,18 @@ watch(
 </script>
 
 <template>
-  <Dialog v-model:open="open">
+  <Dialog :open="open" @update:open="handleOpenChange">
     <DialogContent
       class="sm:max-w-[520px]"
       :show-close-button="!isCloseBlocked"
       @interact-outside="
         (e: Event) => {
           if (isCloseBlocked) e.preventDefault();
-          else handleCancel();
         }
       "
       @escape-key-down="
         (e: Event) => {
           if (isCloseBlocked) e.preventDefault();
-          else handleCancel();
         }
       "
     >
