@@ -656,6 +656,7 @@ const { searchText, deferredSearchText: deferredClientSearchText, overlayVisible
 
 const orderByInput = ref(props.initialOrderByInput ?? "");
 const whereFilterInput = ref(props.initialWhereInput ?? "");
+const queryControlError = ref("");
 const conditionColumns = computed(() => dataGridConditionColumnOptions(props.tableMeta?.columns ?? props.result.columns, resolvedDatabaseType.value));
 const conditionIdentifierQuote = computed(() => dataGridConditionIdentifierQuote(resolvedDatabaseType.value, connectionStore.connectionIdentifierQuote?.(props.connectionId)));
 const conditionHistoryScope = computed(() => ({
@@ -4507,7 +4508,7 @@ async function applyOrderBySearch() {
   emit("update:orderByInput", orderByInput.value);
   if (orderByClause) rememberDataGridConditionHistory("orderBy", conditionHistoryScope.value, orderByClause);
   isApplyingWhere.value = true;
-  saveError.value = "";
+  queryControlError.value = "";
   currentPage.value = 1;
   clearSort();
   try {
@@ -4530,7 +4531,7 @@ async function applyOrderBySearch() {
     });
     await props.onExecuteSql(sql);
   } catch (e: any) {
-    saveError.value = String(e?.message || e);
+    queryControlError.value = String(e?.message || e);
   } finally {
     isApplyingWhere.value = false;
   }
@@ -4541,7 +4542,7 @@ async function applyWhereFilter() {
   const whereInput = currentWhereInput();
   if (whereInput) rememberDataGridConditionHistory("where", conditionHistoryScope.value, whereInput);
   isApplyingWhere.value = true;
-  saveError.value = "";
+  queryControlError.value = "";
   currentPage.value = 1;
   emit("update:whereInput", whereInput ?? "");
   try {
@@ -4564,7 +4565,7 @@ async function applyWhereFilter() {
     });
     await props.onExecuteSql(sql);
   } catch (e: any) {
-    saveError.value = String(e?.message || e);
+    queryControlError.value = String(e?.message || e);
   } finally {
     isApplyingWhere.value = false;
   }
@@ -9960,6 +9961,7 @@ const gridContextMenuItems = computed<ContextMenuItem[]>(() => {
     </div>
 
     <!-- Error bar -->
+    <ErrorBanner v-if="queryControlError" variant="card" :title="t('grid.queryError')" :message="queryControlError" copy-mode="label" dismissible @dismiss="queryControlError = ''" />
     <ErrorBanner v-if="saveError" variant="card" :title="t('grid.saveErrorTitle')" :message="saveError" copy-mode="label" dismissible @dismiss="saveError = ''" />
 
     <!-- Bottom status bar -->
