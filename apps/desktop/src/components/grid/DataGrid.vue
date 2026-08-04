@@ -4773,7 +4773,7 @@ const canvasSurfaceWidth = computed(() => {
   if (vw <= 0) return total;
   return Math.min(vw, total);
 });
-const canvasRenderStyleKey = computed(() => `${settingsStore.editorSettings.theme}:${settingsStore.editorSettings.uiScale}:${canvasBackingPixelRatio.value}:${isDark.value}:${themePalette.value}:${tableFontFamily.value}:${tableFontSize.value}`);
+const canvasRenderStyleKey = computed(() => `${settingsStore.editorSettings.theme}:${settingsStore.editorSettings.uiScale}:${canvasBackingPixelRatio.value}:${isDark.value}:${themePalette.value}:${tableFontFamily.value}:${tableFontSize.value}:${!!saveError.value}`);
 const CANVAS_MOUSE_WHEEL_SCROLL_MULTIPLIER = 1.5;
 const CANVAS_TRACKPAD_DELTA_THRESHOLD = 40;
 let canvasPixelRatioMediaQuery: MediaQueryList | null = null;
@@ -5405,6 +5405,7 @@ watch(
     showCellDetail,
     editingCell,
     frozenColumnCount,
+    saveError,
     // Pending edit structures can contain large nested cell maps; the editor
     // version ref gives the canvas a cheap invalidation signal without a deep watch.
     pendingChangesVersion,
@@ -8459,7 +8460,7 @@ const gridContextMenuItems = computed<ContextMenuItem[]>(() => {
     data-grid-root
     data-grid-active="true"
     class="h-full flex flex-col overflow-hidden outline-none"
-    :class="{ 'data-grid--editing-cell': !!editingCell, 'data-grid--dark': isDark }"
+    :class="{ 'data-grid--editing-cell': !!editingCell, 'data-grid--dark': isDark, 'data-grid--has-save-error': !!saveError }"
     :style="gridStyle"
     tabindex="0"
     @keydown="onGridKeydown"
@@ -9959,7 +9960,7 @@ const gridContextMenuItems = computed<ContextMenuItem[]>(() => {
     </div>
 
     <!-- Error bar -->
-    <ErrorBanner v-if="saveError" :message="saveError" copy-mode="label" dismissible @dismiss="saveError = ''" />
+    <ErrorBanner v-if="saveError" variant="card" :title="t('grid.saveErrorTitle')" :message="saveError" copy-mode="label" dismissible @dismiss="saveError = ''" />
 
     <!-- Bottom status bar -->
     <div v-if="!isErrorResult" class="grid grid-cols-[max-content_minmax(0,1fr)_max-content] items-center gap-2 px-3 py-1 border-t text-xs text-muted-foreground bg-muted/30 shrink-0">
@@ -10121,7 +10122,7 @@ const gridContextMenuItems = computed<ContextMenuItem[]>(() => {
   --data-grid-row-new-bg: rgb(243, 243, 243);
   --data-grid-row-deleted-bg: rgb(255, 244, 244);
   --data-grid-cell-active-bg: rgb(244, 248, 255);
-  --data-grid-cell-dirty-bg: rgb(255, 248, 230);
+  --data-grid-cell-dirty-bg: rgb(166, 210, 255);
   --data-grid-cell-selected-bg: rgb(239, 246, 255);
   --data-grid-cell-selected-single-bg: rgb(191, 219, 254);
   --data-grid-cell-selected-dirty-bg: rgb(235, 224, 184);
@@ -10142,13 +10143,18 @@ const gridContextMenuItems = computed<ContextMenuItem[]>(() => {
   background-color: rgb(255, 255, 255);
 }
 
+[data-grid-root].data-grid--has-save-error {
+  --data-grid-cell-dirty-bg: rgb(250, 212, 216) !important;
+  --data-grid-cell-selected-dirty-bg: rgb(240, 192, 198) !important;
+}
+
 [data-grid-root].data-grid--dark,
 :global(.dark) [data-grid-root] {
   --data-grid-row-muted-bg: rgb(40, 40, 43);
   --data-grid-row-new-bg: rgb(51, 51, 55);
   --data-grid-row-deleted-bg: rgb(55, 31, 32);
   --data-grid-cell-active-bg: rgb(25, 34, 46);
-  --data-grid-cell-dirty-bg: rgb(94, 75, 26);
+  --data-grid-cell-dirty-bg: rgb(33, 66, 131);
   --data-grid-cell-selected-bg: rgb(20, 40, 60);
   --data-grid-cell-selected-single-bg: rgb(30, 64, 96);
   --data-grid-cell-selected-dirty-bg: rgb(76, 66, 38);
@@ -10169,12 +10175,18 @@ const gridContextMenuItems = computed<ContextMenuItem[]>(() => {
   background-color: rgb(19, 20, 22);
 }
 
+[data-grid-root].data-grid--dark.data-grid--has-save-error,
+:global(.dark) [data-grid-root].data-grid--has-save-error {
+  --data-grid-cell-dirty-bg: rgb(94, 56, 57) !important;
+  --data-grid-cell-selected-dirty-bg: rgb(114, 66, 67) !important;
+}
+
 @supports (background: color-mix(in oklab, white 50%, transparent)) {
   [data-grid-root] {
     --data-grid-row-muted-bg: color-mix(in oklab, var(--muted) 99%, var(--foreground));
     --data-grid-row-new-bg: color-mix(in oklab, var(--primary) 5%, transparent);
     --data-grid-row-deleted-bg: color-mix(in oklab, var(--destructive) 5%, transparent);
-    --data-grid-cell-dirty-bg: color-mix(in oklab, rgb(240 177 0) 10%, transparent);
+    --data-grid-cell-dirty-bg: color-mix(in oklab, rgb(166 210 255) 85%, var(--background));
     --data-grid-cell-selected-bg: color-mix(in oklab, rgb(59 130 246) 12%, var(--background));
     --data-grid-cell-selected-single-bg: color-mix(in oklab, rgb(59 130 246) 30%, var(--background));
     --data-grid-cell-selected-dirty-bg: color-mix(in oklab, rgb(234 181 50) 30%, color-mix(in oklab, rgb(59 130 246) 18%, var(--background)));
@@ -10184,6 +10196,15 @@ const gridContextMenuItems = computed<ContextMenuItem[]>(() => {
     --data-grid-row-number-edited-bg: color-mix(in oklab, rgb(245 158 11) 15%, var(--background));
     --data-grid-row-number-deleted-bg: color-mix(in oklab, var(--destructive) 15%, var(--background));
     --data-grid-row-number-selected-bg: color-mix(in oklab, rgb(59 130 246) 30%, var(--background));
+  }
+  [data-grid-root].data-grid--has-save-error {
+    --data-grid-cell-dirty-bg: rgb(250, 212, 216) !important;
+    --data-grid-cell-selected-dirty-bg: rgb(240, 192, 198) !important;
+  }
+  [data-grid-root].data-grid--dark.data-grid--has-save-error,
+  :global(.dark) [data-grid-root].data-grid--has-save-error {
+    --data-grid-cell-dirty-bg: rgb(94, 56, 57) !important;
+    --data-grid-cell-selected-dirty-bg: rgb(114, 66, 67) !important;
   }
 }
 
@@ -10671,6 +10692,17 @@ const gridContextMenuItems = computed<ContextMenuItem[]>(() => {
 
 .cell-dirty {
   background-color: var(--data-grid-cell-dirty-bg) !important;
+}
+
+.cell-dirty::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  border-style: solid;
+  border-width: 0 5px 5px 0;
+  border-color: transparent #f59e0b transparent transparent;
+  pointer-events: none;
 }
 
 .cell-search-match {
